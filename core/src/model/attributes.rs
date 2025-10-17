@@ -48,6 +48,96 @@ pub mod integer_str {
     }
 }
 
+pub mod integer_or_integer_str {
+    use serde::{
+        de::{Deserializer, Unexpected, Visitor},
+        ser::Serializer,
+    };
+    use std::{marker::PhantomData, str::FromStr};
+
+    const EXPECTED: &str = "integer or integer string";
+
+    pub fn deserialize<'de, T: FromStr, D: Deserializer<'de>>(
+        deserializer: D,
+    ) -> Result<T, D::Error> {
+        struct IntegerStrVisitor<T> {
+            _target: PhantomData<T>,
+        }
+
+        impl<'de, T: FromStr> Visitor<'de> for IntegerStrVisitor<T> {
+            type Value = T;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                formatter.write_str(EXPECTED)
+            }
+
+            fn visit_borrowed_str<E: serde::de::Error>(
+                self,
+                v: &'de str,
+            ) -> Result<Self::Value, E> {
+                v.parse::<Self::Value>()
+                    .map_err(|_| serde::de::Error::invalid_value(Unexpected::Str(v), &EXPECTED))
+            }
+
+            fn visit_str<E: serde::de::Error>(self, v: &str) -> Result<Self::Value, E> {
+                v.parse::<Self::Value>()
+                    .map_err(|_| serde::de::Error::invalid_value(Unexpected::Str(v), &EXPECTED))
+            }
+
+            fn visit_u8<E: serde::de::Error>(self, v: u8) -> Result<Self::Value, E> {
+                self.visit_str(&v.to_string())
+            }
+
+            fn visit_u16<E: serde::de::Error>(self, v: u16) -> Result<Self::Value, E> {
+                self.visit_str(&v.to_string())
+            }
+
+            fn visit_u32<E: serde::de::Error>(self, v: u32) -> Result<Self::Value, E> {
+                self.visit_str(&v.to_string())
+            }
+
+            fn visit_u64<E: serde::de::Error>(self, v: u64) -> Result<Self::Value, E> {
+                self.visit_str(&v.to_string())
+            }
+
+            fn visit_u128<E: serde::de::Error>(self, v: u128) -> Result<Self::Value, E> {
+                self.visit_str(&v.to_string())
+            }
+
+            fn visit_i8<E: serde::de::Error>(self, v: i8) -> Result<Self::Value, E> {
+                self.visit_str(&v.to_string())
+            }
+
+            fn visit_i16<E: serde::de::Error>(self, v: i16) -> Result<Self::Value, E> {
+                self.visit_str(&v.to_string())
+            }
+
+            fn visit_i32<E: serde::de::Error>(self, v: i32) -> Result<Self::Value, E> {
+                self.visit_str(&v.to_string())
+            }
+
+            fn visit_i64<E: serde::de::Error>(self, v: i64) -> Result<Self::Value, E> {
+                self.visit_str(&v.to_string())
+            }
+
+            fn visit_i128<E: serde::de::Error>(self, v: i128) -> Result<Self::Value, E> {
+                self.visit_str(&v.to_string())
+            }
+        }
+
+        deserializer.deserialize_any(IntegerStrVisitor::<T> {
+            _target: PhantomData,
+        })
+    }
+
+    pub fn serialize<T: std::fmt::Display, S: Serializer>(
+        value: &T,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(&value.to_string())
+    }
+}
+
 pub mod integer_str_opt {
     use serde::{
         de::{Deserializer, Visitor},
@@ -288,6 +378,34 @@ impl<'de, A: serde::de::SeqAccess<'de>, E: std::str::FromStr> Iterator
                 }
             }
         }
+    }
+}
+
+pub mod timestamp_str {
+    use chrono::{DateTime, TimeZone, Utc};
+    use serde::{Deserialize, Deserializer, Serializer};
+
+    pub fn deserialize<'de, D: Deserializer<'de>>(
+        deserializer: D,
+    ) -> Result<DateTime<Utc>, D::Error> {
+        String::deserialize(deserializer).and_then(|value| {
+            let timestamp_s = value
+                .parse::<i64>()
+                .map_err(|_| serde::de::Error::custom(format!("Invalid timestamp: {value}")))?;
+            let timestamp = Utc
+                .timestamp_opt(timestamp_s, 0)
+                .single()
+                .ok_or_else(|| serde::de::Error::custom(format!("Invalid timestamp: {value}")))?;
+
+            Ok(timestamp)
+        })
+    }
+
+    pub fn serialize<S: Serializer>(
+        value: &DateTime<Utc>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(&value.timestamp().to_string())
     }
 }
 

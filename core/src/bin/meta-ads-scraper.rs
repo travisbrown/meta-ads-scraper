@@ -17,7 +17,9 @@ pub enum Error {
     #[error("API client error")]
     Api(#[from] meta_ads_scraper::client::Error),
     #[error("Library client error")]
-    Library(#[from] meta_ads_scraper::library::Error),
+    LibraryClient(#[from] meta_ads_scraper::library::Error),
+    #[error("Library model error")]
+    LibraryModel(PathBuf, meta_ads_scraper::model::library::Error),
     #[error("HTTP client error")]
     Http(#[from] reqwest::Error),
     #[error("CSV error")]
@@ -178,6 +180,51 @@ async fn main() -> Result<(), Error> {
 
             writer.flush()?;
         }
+        Command::LibraryArchive { data } => {
+            let mut paths = std::fs::read_dir(data)?
+                .map(|entry| {
+                    let entry = entry?;
+                    let path = entry.path();
+                    let modified = path.metadata()?.modified()?;
+
+                    Ok((modified, entry.path()))
+                })
+                .collect::<Result<Vec<_>, Error>>()?;
+
+            // Process newest additions first, in order to speed up catching errors.
+            paths.sort_by_key(|(modified, _)| std::cmp::Reverse(*modified));
+
+            let mut writer = csv::WriterBuilder::new()
+                .has_headers(false)
+                .from_writer(std::io::stdout());
+
+            for (_, path) in paths {
+                let content = std::fs::read_to_string(&path)?;
+                let exchange = serde_json::from_str::<Exchange<serde_json::Value>>(&content)?;
+
+                let ad = meta_ads_scraper::model::library::Ad::extract(&exchange.response.data)
+                    .map_err(|error| Error::LibraryModel(path.clone(), error))?;
+
+                match ad {
+                    Some(ad) => {
+                        writer.write_record([
+                            ad.deeplink_ad_card.ad_archive_id.to_string(),
+                            ad.deeplink_ad_card.snapshot.page_id.to_string(),
+                            ad.deeplink_ad_card
+                                .snapshot
+                                .link_url
+                                .map(|link_url| link_url.to_string())
+                                .unwrap_or_default(),
+                        ])?;
+                    }
+                    None => {
+                        ::log::warn!("Empty library response: {:?}", path);
+                    }
+                }
+            }
+
+            writer.flush()?;
+        }
     }
 
     Ok(())
@@ -246,6 +293,11 @@ enum Command {
     },
     /// Print ad IDs, page IDs, and page names as CSV for all archived exchanges
     SearchArchive {
+        /// Archive directory
+        #[clap(long)]
+        data: PathBuf,
+    },
+    LibraryArchive {
         /// Archive directory
         #[clap(long)]
         data: PathBuf,

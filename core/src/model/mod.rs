@@ -3,6 +3,7 @@ use chrono::NaiveDate;
 use std::borrow::Cow;
 
 pub mod attributes;
+pub mod library;
 
 #[derive(Clone, Debug, Eq, PartialEq, ToStatic, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields, untagged)]
