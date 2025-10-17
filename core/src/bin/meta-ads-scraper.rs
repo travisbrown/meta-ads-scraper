@@ -215,6 +215,17 @@ async fn main() -> Result<(), Error> {
                                 .link_url
                                 .map(|link_url| link_url.to_string())
                                 .unwrap_or_default(),
+                            ad.deeplink_ad_card
+                                .snapshot
+                                .page_profile_picture_url
+                                .to_string(),
+                            ad.deeplink_ad_card
+                                .snapshot
+                                .videos
+                                .first()
+                                .and_then(|video| video.video_preview_image_url.as_ref())
+                                .map(|video_preview_image_url| video_preview_image_url.to_string())
+                                .unwrap_or_default(),
                         ])?;
                     }
                     None => {
