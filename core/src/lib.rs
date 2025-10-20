@@ -2,7 +2,6 @@
 #![allow(clippy::missing_errors_doc)]
 #![forbid(unsafe_code)]
 pub mod client;
-pub mod exchange;
 pub mod library;
 pub mod model;
 pub mod token;

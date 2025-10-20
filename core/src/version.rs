@@ -12,6 +12,13 @@ pub struct GraphApiVersion {
     pub minor: u16,
 }
 
+impl GraphApiVersion {
+    #[must_use]
+    pub const fn new(major: u16, minor: u16) -> Self {
+        Self { major, minor }
+    }
+}
+
 impl Display for GraphApiVersion {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}.{}", self.major, self.minor)

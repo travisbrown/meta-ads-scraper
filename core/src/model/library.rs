@@ -1,4 +1,6 @@
 use chrono::{DateTime, Utc};
+use scraper_trail::archive::Archiveable;
+use serde_field_attributes::integer_or_integer_str;
 use serde_json::Value;
 use std::borrow::Cow;
 
@@ -30,7 +32,7 @@ pub struct Ad<'a> {
 
 impl<'a> Ad<'a> {
     #[allow(clippy::missing_panics_doc)]
-    pub fn extract(value: &'a Value) -> Result<Option<Self>, Error> {
+    pub fn extract(value: &Value) -> Result<Option<Self>, Error> {
         if value.as_array().is_some_and(std::vec::Vec::is_empty) {
             Ok(None)
         } else {
@@ -67,7 +69,7 @@ impl<'a> Ad<'a> {
         }
     }
 
-    fn extract_rec(value: &'a Value, current: &mut PartialAd<'a>) -> Result<(), Error> {
+    fn extract_rec(value: &Value, current: &mut PartialAd<'a>) -> Result<(), Error> {
         if let Some(as_array) = value.as_array() {
             for value in as_array {
                 Self::extract_rec(value, current)?;
@@ -95,6 +97,53 @@ impl<'a> Ad<'a> {
     }
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum AdResponse<'a> {
+    Value(Ad<'a>),
+    Empty,
+}
+
+impl<'a> From<Option<Ad<'a>>> for AdResponse<'a> {
+    fn from(value: Option<Ad<'a>>) -> Self {
+        value.map_or(Self::Empty, Self::Value)
+    }
+}
+
+impl<'a> From<AdResponse<'a>> for Option<Ad<'a>> {
+    fn from(value: AdResponse<'a>) -> Self {
+        match value {
+            AdResponse::Value(ad) => Some(ad),
+            AdResponse::Empty => None,
+        }
+    }
+}
+
+impl Archiveable for AdResponse<'_> {
+    type RequestParams<'b> = crate::library::request::Params;
+
+    fn read_response<'a, 'de: 'a, A: serde::de::MapAccess<'de>>(
+        _request_params: &Self::RequestParams<'a>,
+        map: &mut A,
+    ) -> Result<
+        Option<(
+            scraper_trail::archive::Field,
+            scraper_trail::exchange::Response<'a, Self>,
+        )>,
+        A::Error,
+    > {
+        let next = map.next_entry::<scraper_trail::archive::Field, scraper_trail::exchange::Response<'a, serde_json::Value>>()?;
+
+        next.map(|(field, response)| {
+            response
+                .and_then(|data| Ad::extract(&data).map(std::convert::Into::into))
+                .map(|response| (field, response))
+        })
+        .map_or(Ok(None), |value| {
+            value.map_err(serde::de::Error::custom).map(Some)
+        })
+    }
+}
+
 type MarkupElement<'a> = ((Cow<'a, str>, MarkupHtml<'a>, u8, MarkupType),);
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -117,10 +166,7 @@ pub struct Markup<'a> {
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct DeeplinkAdCard<'a> {
-    #[serde(
-        rename = "adArchiveID",
-        with = "crate::model::attributes::integer_or_integer_str"
-    )]
+    #[serde(rename = "adArchiveID", with = "integer_or_integer_str")]
     pub ad_archive_id: u64,
     pub snapshot: Snapshot<'a>,
 }
@@ -131,7 +177,7 @@ pub struct Snapshot<'a> {
     pub link_url: Option<Cow<'a, str>>,
     #[serde(with = "chrono::serde::ts_seconds")]
     pub creation_time: DateTime<Utc>,
-    #[serde(with = "crate::model::attributes::integer_or_integer_str")]
+    #[serde(with = "integer_or_integer_str")]
     pub page_id: u64,
     pub page_name: Cow<'a, str>,
     pub current_page_name: Option<Cow<'a, str>>,

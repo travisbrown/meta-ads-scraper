@@ -1,8 +1,9 @@
 use bounded_static_derive_more::ToStatic;
 use chrono::NaiveDate;
+use scraper_trail::archive::Archiveable;
+use serde_field_attributes::{integer_str, optional_integer_str, optional_integer_str_array};
 use std::borrow::Cow;
 
-pub mod attributes;
 pub mod library;
 
 #[derive(Clone, Debug, Eq, PartialEq, ToStatic, serde::Deserialize, serde::Serialize)]
@@ -26,6 +27,24 @@ impl<'a, D> Response<'a, D> {
             Self::Success(response) => Ok(response.data.as_slice()),
             Self::Failure { error } => Err(error.clone()),
         }
+    }
+}
+
+impl<'r> Archiveable for Response<'r, Ad<'r>> {
+    type RequestParams<'b> = crate::client::request::Params<'b>;
+
+    fn read_response<'a, 'de: 'a, A: serde::de::MapAccess<'de>>(
+        _request_params: &Self::RequestParams<'a>,
+        map: &mut A,
+    ) -> Result<
+        Option<(
+            scraper_trail::archive::Field,
+            scraper_trail::exchange::Response<'a, Self>,
+        )>,
+        A::Error,
+    > {
+        map
+            .next_entry::<scraper_trail::archive::Field, scraper_trail::exchange::Response<'a, Self>>()
     }
 }
 
@@ -65,9 +84,9 @@ pub struct Cursors<'a> {
 #[derive(Clone, Debug, Eq, PartialEq, ToStatic, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Ad<'a> {
-    #[serde(with = "crate::model::attributes::integer_str")]
+    #[serde(with = "integer_str")]
     pub id: u64,
-    #[serde(with = "crate::model::attributes::integer_str")]
+    #[serde(with = "integer_str")]
     pub page_id: u64,
     pub page_name: Cow<'a, str>,
     pub ad_snapshot_url: Cow<'a, str>,
@@ -83,7 +102,7 @@ pub struct Ad<'a> {
     pub eu_total_reach: Option<usize>,
     pub languages: Option<Vec<Cow<'a, str>>>,
     pub publisher_platforms: Vec<PublisherPlatforms>,
-    #[serde(with = "crate::model::attributes::integer_str_array_opt", default)]
+    #[serde(with = "optional_integer_str_array", default)]
     pub target_ages: Option<Vec<usize>>,
     pub target_gender: Option<TargetGender>,
     pub target_locations: Option<Vec<TargetLocation<'a>>>,
@@ -101,9 +120,9 @@ pub struct Ad<'a> {
 #[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Bounds {
-    #[serde(with = "crate::model::attributes::integer_str")]
+    #[serde(with = "integer_str")]
     pub lower_bound: usize,
-    #[serde(with = "crate::model::attributes::integer_str_opt", default)]
+    #[serde(with = "optional_integer_str", default)]
     pub upper_bound: Option<usize>,
 }
 

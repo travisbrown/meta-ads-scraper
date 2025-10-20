@@ -14,11 +14,15 @@ csv = { workspace = true }
 cli-helpers = { workspace = true }
 indexmap = { workspace = true }
 log = { workspace = true }
+regex = { workspace = true }
 reqwest = { workspace = true }
 scraper = { workspace = true }
+scraper-trail = { workspace = true }
 serde = { workspace = true }
+serde-field-attributes = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
 toml = { workspace = true }
+url = { workspace = true }
 urlencoding = { workspace = true }

@@ -1,11 +1,11 @@
 use chrono::Utc;
 use cli_helpers::prelude::*;
 use meta_ads_scraper::{
-    exchange::Exchange,
-    model::{Ad, Response, ResponseSuccess},
+    model::{Ad, Response},
     token::Creds,
     version::GraphApiVersion,
 };
+use scraper_trail::archive::Archive;
 use std::path::PathBuf;
 
 #[derive(thiserror::Error, Debug)]
@@ -20,6 +20,8 @@ pub enum Error {
     LibraryClient(#[from] meta_ads_scraper::library::Error),
     #[error("Library model error")]
     LibraryModel(PathBuf, meta_ads_scraper::model::library::Error),
+    #[error("Scraper store error")]
+    ScraperStore(#[from] scraper_trail::store::Error),
     #[error("HTTP client error")]
     Http(#[from] reqwest::Error),
     #[error("CSV error")]
@@ -57,9 +59,9 @@ async fn main() -> Result<(), Error> {
 
             let client = meta_ads_scraper::client::Client::new(creds.token, output);
             let search_type = if exact {
-                meta_ads_scraper::client::SearchType::KeywordExactPhrase
+                meta_ads_scraper::client::request::SearchType::KeywordExactPhrase
             } else {
-                meta_ads_scraper::client::SearchType::KeywordUnordered
+                meta_ads_scraper::client::request::SearchType::KeywordUnordered
             };
 
             let results = client
@@ -92,7 +94,7 @@ async fn main() -> Result<(), Error> {
         Command::LibraryAd { id, output } => {
             let client = meta_ads_scraper::library::Client::new::<_, String>(output, None)?;
 
-            let _response = client.app(id).await?;
+            client.app(id).await?;
         }
         Command::LibraryAds { output, delay } => {
             let ids = std::io::stdin()
@@ -107,7 +109,7 @@ async fn main() -> Result<(), Error> {
             let client = meta_ads_scraper::library::Client::new::<_, String>(output, None)?;
 
             for id in ids {
-                let _response = client.app(id).await?;
+                client.app(id).await?;
                 tokio::time::sleep(std::time::Duration::from_secs(delay)).await;
             }
         }
@@ -125,44 +127,23 @@ async fn main() -> Result<(), Error> {
 
             println!("{}", toml::to_string(&response.creds(Utc::now()))?);
         }
-        Command::SearchArchive { data } => {
-            let mut paths = std::fs::read_dir(data)?
-                .map(|entry| {
-                    let entry = entry?;
-                    let path = entry.path();
-                    let modified = path.metadata()?.modified()?;
-
-                    Ok((modified, entry.path()))
-                })
-                .collect::<Result<Vec<_>, Error>>()?;
-
-            // Process newest additions first, in order to speed up catching errors.
-            paths.sort_by_key(|(modified, _)| std::cmp::Reverse(*modified));
+        Command::SearchArchive {
+            data,
+            most_recent_first,
+        } => {
+            let store = scraper_trail::store::Store::new(data);
 
             let mut writer = csv::WriterBuilder::new()
                 .has_headers(false)
                 .from_writer(std::io::stdout());
 
-            for (_, path) in paths {
-                let content = std::fs::read_to_string(&path)?;
+            for (path, contents) in store.contents(most_recent_first)? {
+                let contents = contents?;
 
-                let exchange = match serde_json::from_str::<Exchange<Response<'static, Ad<'static>>>>(
-                    &content,
-                ) {
-                    Ok(exchange) => Ok(exchange),
-                    Err(_) => {
-                        // Hack to get better error message.
-                        let reparsed = serde_json::from_str::<
-                            Exchange<ResponseSuccess<'static, Ad<'static>>>,
-                        >(&content);
+                let archive = serde_json::from_str::<Archive<Response<Ad>>>(&contents)
+                    .map_err(|error| Error::JsonFile(path, error))?;
 
-                        Err(reparsed
-                            .map_err(|error| Error::JsonFile(path.clone(), error))
-                            .expect_err("Should have failed"))
-                    }
-                }?;
-
-                match exchange.response.data.result() {
+                match archive.exchange.response.data.result() {
                     Ok(ads) => {
                         for ad in ads {
                             writer.write_record([
@@ -180,57 +161,47 @@ async fn main() -> Result<(), Error> {
 
             writer.flush()?;
         }
-        Command::LibraryArchive { data } => {
-            let mut paths = std::fs::read_dir(data)?
-                .map(|entry| {
-                    let entry = entry?;
-                    let path = entry.path();
-                    let modified = path.metadata()?.modified()?;
-
-                    Ok((modified, entry.path()))
-                })
-                .collect::<Result<Vec<_>, Error>>()?;
-
-            // Process newest additions first, in order to speed up catching errors.
-            paths.sort_by_key(|(modified, _)| std::cmp::Reverse(*modified));
+        Command::LibraryArchive {
+            data,
+            most_recent_first,
+        } => {
+            let store = scraper_trail::store::Store::new(data);
 
             let mut writer = csv::WriterBuilder::new()
                 .has_headers(false)
                 .from_writer(std::io::stdout());
 
-            for (_, path) in paths {
-                let content = std::fs::read_to_string(&path)?;
-                let exchange = serde_json::from_str::<Exchange<serde_json::Value>>(&content)?;
+            for (path, contents) in store.contents(most_recent_first)? {
+                let contents = contents?;
 
-                let ad = meta_ads_scraper::model::library::Ad::extract(&exchange.response.data)
-                    .map_err(|error| Error::LibraryModel(path.clone(), error))?;
+                let archive = serde_json::from_str::<
+                    Archive<meta_ads_scraper::model::library::AdResponse>,
+                >(&contents)
+                .map_err(|error| Error::JsonFile(path, error))?;
 
-                match ad {
-                    Some(ad) => {
-                        writer.write_record([
-                            ad.deeplink_ad_card.ad_archive_id.to_string(),
-                            ad.deeplink_ad_card.snapshot.page_id.to_string(),
-                            ad.deeplink_ad_card
-                                .snapshot
-                                .link_url
-                                .map(|link_url| link_url.to_string())
-                                .unwrap_or_default(),
-                            ad.deeplink_ad_card
-                                .snapshot
-                                .page_profile_picture_url
-                                .to_string(),
-                            ad.deeplink_ad_card
-                                .snapshot
-                                .videos
-                                .first()
-                                .and_then(|video| video.video_preview_image_url.as_ref())
-                                .map(|video_preview_image_url| video_preview_image_url.to_string())
-                                .unwrap_or_default(),
-                        ])?;
-                    }
-                    None => {
-                        ::log::warn!("Empty library response: {:?}", path);
-                    }
+                if let meta_ads_scraper::model::library::AdResponse::Value(ad) =
+                    archive.exchange.response.data
+                {
+                    writer.write_record([
+                        ad.deeplink_ad_card.ad_archive_id.to_string(),
+                        ad.deeplink_ad_card.snapshot.page_id.to_string(),
+                        ad.deeplink_ad_card
+                            .snapshot
+                            .link_url
+                            .map(|link_url| link_url.to_string())
+                            .unwrap_or_default(),
+                        ad.deeplink_ad_card
+                            .snapshot
+                            .page_profile_picture_url
+                            .to_string(),
+                        ad.deeplink_ad_card
+                            .snapshot
+                            .videos
+                            .first()
+                            .and_then(|video| video.video_preview_image_url.as_ref())
+                            .map(|video_preview_image_url| video_preview_image_url.to_string())
+                            .unwrap_or_default(),
+                    ])?;
                 }
             }
 
@@ -307,11 +278,15 @@ enum Command {
         /// Archive directory
         #[clap(long)]
         data: PathBuf,
+        #[clap(long)]
+        most_recent_first: bool,
     },
     LibraryArchive {
         /// Archive directory
         #[clap(long)]
         data: PathBuf,
+        #[clap(long)]
+        most_recent_first: bool,
     },
 }
 

@@ -22,9 +22,12 @@ log = "0.4"
 regex = "1"
 reqwest = { version = "0.12", features = ["cookies", "json"] }
 scraper = "0.24"
+scraper-trail = { git = "https://github.com/travisbrown/scraper-trail.git" }
 serde = { version = "1", features = ["derive"] }
+serde-field-attributes = { git = "https://github.com/travisbrown/serde-field-attributes.git" }
 serde_json = { version = "1", features = ["preserve_order"] }
 thiserror = "2"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 toml = { version = "0.9", features = ["preserve_order"] }
+url = "2"
 urlencoding = "2"

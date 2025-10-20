@@ -1,8 +1,9 @@
-use chrono::Utc;
-use indexmap::IndexMap;
 use scraper::Selector;
+use scraper_trail::request::params::Params;
 use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
+
+pub mod request;
 
 const DEFAULT_USER_AGENT: &str = "curl/8.16.0";
 
@@ -17,8 +18,8 @@ pub enum Error {
     Reqwest(#[from] reqwest::Error),
     #[error("JSON error")]
     Json(#[from] serde_json::Error),
-    #[error("Exchange parsing error")]
-    Exchange(#[from] crate::exchange::Error),
+    #[error("Scraper client error")]
+    ScraperClient(#[from] scraper_trail::client::Error),
 }
 
 #[derive(Clone)]
@@ -43,32 +44,24 @@ impl Client {
         })
     }
 
-    pub async fn app(&self, id: u64) -> Result<String, Error> {
-        let url = format!("https://www.facebook.com/ads/library/?id={id}");
+    pub async fn app(&self, id: u64) -> Result<(), Error> {
+        let params = request::Params::new(id);
+        let request = params.build_request(None);
 
-        let timestamp = Utc::now();
-        let response = self.underlying.get(&url).send().await?;
-        let response_headers = crate::exchange::response_headers(response.headers())?;
-        let body = response.text().await?;
-        let html = scraper::html::Html::parse_document(&body);
+        let exchange = scraper_trail::client::text_send(&self.underlying, request).await?;
+
+        let html = scraper::html::Html::parse_document(&exchange.response.data);
         let json_scripts = html
             .select(&JSON_SCRIPT_SEL)
             .map(|element| serde_json::from_str::<serde_json::Value>(&element.inner_html()))
             .collect::<Result<Vec<_>, _>>()?;
 
-        let exchange = crate::exchange::Exchange::new(
-            url,
-            timestamp,
-            IndexMap::default(),
-            None,
-            response_headers,
-            serde_json::json!(json_scripts),
-        );
+        let exchange = exchange.map(|_| serde_json::json!(json_scripts));
 
         if let Some(base) = &self.output {
-            exchange.write(base)?;
+            exchange.save_file(base)?;
         }
 
-        Ok(body)
+        Ok(())
     }
 }
