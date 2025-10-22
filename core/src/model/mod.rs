@@ -101,7 +101,7 @@ pub struct Ad<'a> {
     pub beneficiary_payers: Option<Vec<BeneficiaryPayer<'a>>>,
     pub eu_total_reach: Option<usize>,
     pub languages: Option<Vec<Cow<'a, str>>>,
-    pub publisher_platforms: Vec<PublisherPlatforms>,
+    pub publisher_platforms: Option<Vec<PublisherPlatforms>>,
     #[serde(with = "optional_integer_str_array", default)]
     pub target_ages: Option<Vec<usize>>,
     pub target_gender: Option<TargetGender>,
