@@ -34,12 +34,12 @@ impl Params {
     }
 }
 
-impl<'a> scraper_trail::request::params::Params<'a> for Params {
-    fn parse_request(request: &Request<'a>) -> Result<Self, ParseError> {
+impl scraper_trail::request::params::Params for Params {
+    fn parse_request(request: &Request<'_>) -> Result<Self, ParseError> {
         Self::parse_url(&request.url).ok_or(Self::error())
     }
 
-    fn build_request(&'a self, timestamp: Option<DateTime<Utc>>) -> Request<'a> {
+    fn build_request(&self, timestamp: Option<DateTime<Utc>>) -> Request<'_> {
         let url = format!("https://www.facebook.com/ads/library/?id={}", self.ad_id);
 
         Request::new::<_, String, String, Vec<(String, String)>, String>(

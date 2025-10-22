@@ -186,12 +186,12 @@ impl<'a> Params<'a> {
     }
 }
 
-impl<'a> scraper_trail::request::params::Params<'a> for Params<'a> {
-    fn parse_request(request: &Request<'a>) -> Result<Self, ParseError> {
+impl<'a> scraper_trail::request::params::Params for Params<'a> {
+    fn parse_request(request: &Request<'_>) -> Result<Self, ParseError> {
         Self::parse_url(&request.url).ok_or(Self::error())
     }
 
-    fn build_request(&'a self, timestamp: Option<DateTime<Utc>>) -> Request<'a> {
+    fn build_request(&self, timestamp: Option<DateTime<Utc>>) -> Request<'a> {
         let ad_reached_countries = self
             .countries
             .iter()

@@ -5,7 +5,7 @@ use meta_ads_scraper::{
     token::Creds,
     version::GraphApiVersion,
 };
-use scraper_trail::archive::Archive;
+use scraper_trail::archive::entry::Entry;
 use std::path::PathBuf;
 
 #[derive(thiserror::Error, Debug)]
@@ -21,7 +21,7 @@ pub enum Error {
     #[error("Library model error")]
     LibraryModel(PathBuf, meta_ads_scraper::model::library::Error),
     #[error("Scraper store error")]
-    ScraperStore(#[from] scraper_trail::store::Error),
+    ScraperStore(#[from] scraper_trail::archive::store::Error),
     #[error("HTTP client error")]
     Http(#[from] reqwest::Error),
     #[error("CSV error")]
@@ -131,7 +131,7 @@ async fn main() -> Result<(), Error> {
             data,
             most_recent_first,
         } => {
-            let store = scraper_trail::store::Store::new(data);
+            let store = scraper_trail::archive::store::Store::new(data);
 
             let mut writer = csv::WriterBuilder::new()
                 .has_headers(false)
@@ -140,7 +140,7 @@ async fn main() -> Result<(), Error> {
             for (path, contents) in store.contents(most_recent_first)? {
                 let contents = contents?;
 
-                let archive = serde_json::from_str::<Archive<Response<Ad>>>(&contents)
+                let archive = serde_json::from_str::<Entry<Response<Ad>>>(&contents)
                     .map_err(|error| Error::JsonFile(path, error))?;
 
                 match archive.exchange.response.data.result() {
@@ -165,7 +165,7 @@ async fn main() -> Result<(), Error> {
             data,
             most_recent_first,
         } => {
-            let store = scraper_trail::store::Store::new(data);
+            let store = scraper_trail::archive::store::Store::new(data);
 
             let mut writer = csv::WriterBuilder::new()
                 .has_headers(false)
@@ -175,7 +175,7 @@ async fn main() -> Result<(), Error> {
                 let contents = contents?;
 
                 let archive = serde_json::from_str::<
-                    Archive<meta_ads_scraper::model::library::AdResponse>,
+                    Entry<meta_ads_scraper::model::library::AdResponse>,
                 >(&contents)
                 .map_err(|error| Error::JsonFile(path, error))?;
 

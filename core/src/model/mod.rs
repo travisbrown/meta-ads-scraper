@@ -31,20 +31,20 @@ impl<'a, D> Response<'a, D> {
 }
 
 impl<'r> Archiveable for Response<'r, Ad<'r>> {
-    type RequestParams<'b> = crate::client::request::Params<'b>;
+    type RequestParams = crate::client::request::Params<'r>;
 
-    fn read_response<'a, 'de: 'a, A: serde::de::MapAccess<'de>>(
-        _request_params: &Self::RequestParams<'a>,
+    fn deserialize_response_field<'de, A: serde::de::MapAccess<'de>>(
+        _request_params: &Self::RequestParams,
         map: &mut A,
     ) -> Result<
         Option<(
-            scraper_trail::archive::Field,
-            scraper_trail::exchange::Response<'a, Self>,
+            scraper_trail::archive::entry::Field,
+            scraper_trail::exchange::Response<'de, Self>,
         )>,
         A::Error,
     > {
         map
-            .next_entry::<scraper_trail::archive::Field, scraper_trail::exchange::Response<'a, Self>>()
+            .next_entry::<scraper_trail::archive::entry::Field, scraper_trail::exchange::Response<'_, Self>>()
     }
 }
 

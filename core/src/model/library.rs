@@ -119,19 +119,19 @@ impl<'a> From<AdResponse<'a>> for Option<Ad<'a>> {
 }
 
 impl Archiveable for AdResponse<'_> {
-    type RequestParams<'b> = crate::library::request::Params;
+    type RequestParams = crate::library::request::Params;
 
-    fn read_response<'a, 'de: 'a, A: serde::de::MapAccess<'de>>(
-        _request_params: &Self::RequestParams<'a>,
+    fn deserialize_response_field<'de, A: serde::de::MapAccess<'de>>(
+        _request_params: &Self::RequestParams,
         map: &mut A,
     ) -> Result<
         Option<(
-            scraper_trail::archive::Field,
-            scraper_trail::exchange::Response<'a, Self>,
+            scraper_trail::archive::entry::Field,
+            scraper_trail::exchange::Response<'de, Self>,
         )>,
         A::Error,
     > {
-        let next = map.next_entry::<scraper_trail::archive::Field, scraper_trail::exchange::Response<'a, serde_json::Value>>()?;
+        let next = map.next_entry::<scraper_trail::archive::entry::Field, scraper_trail::exchange::Response<'_, serde_json::Value>>()?;
 
         next.map(|(field, response)| {
             response
