@@ -59,16 +59,19 @@ Perform a search (possibly paginated) and print the ad IDs, page IDs, and page n
 Usage: meta-ads-scraper search [OPTIONS] --terms <TERMS>
 
 Options:
-      --creds <CREDS>      [default: creds.toml]
-  -v, --verbose...         Level of verbosity
-      --version <VERSION>  [default: 24.0]
+      --creds <CREDS>              [default: creds.toml]
+  -v, --verbose...                 Level of verbosity
+      --version <VERSION>          [default: 24.0]
       --terms <TERMS>
-      --country <COUNTRY>  [default: DE]
+      --country <COUNTRY>          [default: DE]
       --exact
-      --after <AFTER>      Optional pagination token
-      --output <OUTPUT>    Archive directory to log requests and responses to
-      --delay <DELAY>      Optional duration (in seconds) between requests [default: 0]
-  -h, --help               Print help
+      --after <AFTER>              Optional pagination token
+      --output <OUTPUT>            Archive directory to log requests and responses to [default: data/search]
+      --limit <LIMIT>              Limit to a specified number of pages
+      --full                       Download full ad information
+      --full-output <FULL_OUTPUT>  Archive directory to log full requests and responses to [default: data/library]
+      --delay <DELAY>              Optional duration (in seconds) between requests [default: 0]
+  -h, --help                       Print help
 ```
 
 If you've used the `--output` command while making searches, you can parse the archived data (without making new requests) using the `search-archive` command:

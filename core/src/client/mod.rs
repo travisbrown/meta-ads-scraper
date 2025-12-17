@@ -1,5 +1,5 @@
 use scraper_trail::request::params::Params;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 pub mod request;
 
@@ -26,11 +26,11 @@ pub struct Client {
 }
 
 impl Client {
-    pub fn new<S: Into<String>>(access_token: S, output: Option<PathBuf>) -> Self {
+    pub fn new<S: Into<String>, P: AsRef<Path>>(access_token: S, output: Option<P>) -> Self {
         Self {
             underlying: reqwest::Client::default(),
             access_token: access_token.into(),
-            output,
+            output: output.map(|output| output.as_ref().to_path_buf()),
             unmask_removed_content: true,
         }
     }
@@ -42,8 +42,11 @@ impl Client {
         countries: &[String],
         search_type: request::SearchType,
         after: Option<&str>,
+        limit: Option<usize>,
         delay: std::time::Duration,
     ) -> Result<Vec<crate::model::Response<'static, crate::model::Ad<'static>>>, Error> {
+        ::log::info!("Initial request");
+
         let params = request::Params::new(
             &self.access_token,
             self.unmask_removed_content,
@@ -91,6 +94,12 @@ impl Client {
                 serde_json::from_value(exchange.response.data)?;
 
             responses.push(response);
+
+            if let Some(limit) = limit {
+                if responses.len() == limit {
+                    break;
+                }
+            }
         }
 
         Ok(responses)

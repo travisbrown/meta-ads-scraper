@@ -109,7 +109,7 @@ pub struct Ad<'a> {
     pub total_reach_by_location: Option<Vec<KeyValue<Cow<'a, str>, usize>>>,
     pub impressions: Option<Bounds>,
     pub spend: Option<Bounds>,
-    pub br_total_reach: Option<()>,
+    pub br_total_reach: Option<usize>,
     pub bylines: Option<Cow<'a, str>>,
     pub currency: Option<Cow<'a, str>>,
     pub delivery_by_region: Option<serde_json::Value>,

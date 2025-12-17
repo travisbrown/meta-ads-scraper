@@ -52,12 +52,18 @@ async fn main() -> Result<(), Error> {
             exact,
             after,
             output,
+            limit,
+            full,
+            full_output,
             delay,
         } => {
             let creds: Creds = toml::from_str(&std::fs::read_to_string(creds)?)?;
             log_token_status(creds.status(Utc::now()));
 
-            let client = meta_ads_scraper::client::Client::new(creds.token, output);
+            let client = meta_ads_scraper::client::Client::new(creds.token, output.as_deref());
+            let library_client =
+                meta_ads_scraper::library::Client::new::<_, String>(full_output.as_deref(), None)?;
+
             let search_type = if exact {
                 meta_ads_scraper::client::request::SearchType::KeywordExactPhrase
             } else {
@@ -71,6 +77,7 @@ async fn main() -> Result<(), Error> {
                     &country,
                     search_type,
                     after.as_deref(),
+                    limit,
                     std::time::Duration::from_secs(delay),
                 )
                 .await?;
@@ -86,6 +93,10 @@ async fn main() -> Result<(), Error> {
                         ad.page_id.to_string(),
                         ad.page_name.to_string(),
                     ])?;
+
+                    if full {
+                        library_client.app(ad.id).await?;
+                    }
                 }
             }
 
@@ -239,8 +250,17 @@ enum Command {
         #[clap(long)]
         after: Option<String>,
         /// Archive directory to log requests and responses to
-        #[clap(long)]
+        #[clap(long, default_value = "data/search")]
         output: Option<PathBuf>,
+        /// Limit to a specified number of pages
+        #[clap(long)]
+        limit: Option<usize>,
+        /// Download full ad information
+        #[clap(long)]
+        full: bool,
+        /// Archive directory to log full requests and responses to
+        #[clap(long, default_value = "data/library")]
+        full_output: Option<PathBuf>,
         /// Optional duration (in seconds) between requests
         #[clap(long, default_value = "0")]
         delay: u64,
@@ -249,13 +269,13 @@ enum Command {
         #[clap(long)]
         id: u64,
         /// Directory to log requests and responses to
-        #[clap(long)]
+        #[clap(long, default_value = "data/library")]
         output: Option<PathBuf>,
     },
     /// Download ads for a list of IDs from standard input
     LibraryAds {
         /// Directory to log requests and responses to
-        #[clap(long)]
+        #[clap(long, default_value = "data/library")]
         output: Option<PathBuf>,
         /// Optional duration (in seconds) between requests
         #[clap(long, default_value = "0")]
@@ -276,14 +296,14 @@ enum Command {
     /// Print ad IDs, page IDs, and page names as CSV for all archived exchanges
     SearchArchive {
         /// Archive directory
-        #[clap(long)]
+        #[clap(long, default_value = "data/search")]
         data: PathBuf,
         #[clap(long)]
         most_recent_first: bool,
     },
     LibraryArchive {
         /// Archive directory
-        #[clap(long)]
+        #[clap(long, default_value = "data/library")]
         data: PathBuf,
         #[clap(long)]
         most_recent_first: bool,
