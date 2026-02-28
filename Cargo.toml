@@ -24,10 +24,10 @@ reqwest = { version = "0.13", features = ["cookies", "json"] }
 scraper = "0.25"
 scraper-trail = "0.1"
 serde = { version = "1", features = ["derive"] }
-serde-field-attributes = "0.2"
+serde-field-attributes = "0.3"
 serde_json = { version = "1", features = ["preserve_order"] }
 thiserror = "2"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
-toml = { version = "0.9", features = ["preserve_order"] }
+toml = { version = "1", features = ["preserve_order"] }
 url = "2"
 urlencoding = "2"
