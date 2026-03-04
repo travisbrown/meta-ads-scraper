@@ -95,10 +95,8 @@ impl Client {
 
             responses.push(response);
 
-            if let Some(limit) = limit {
-                if responses.len() == limit {
-                    break;
-                }
+            if opts.limit.is_some_and(|limit| responses.len() == limit) {
+                break;
             }
         }
 

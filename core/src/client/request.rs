@@ -198,8 +198,7 @@ impl<'a> scraper_trail::request::params::Params for Params<'a> {
             .map(|country| format!("'{country}'"))
             .collect::<Vec<_>>();
         let ad_reached_countries = format!("[{}]", ad_reached_countries.join(","));
-        let fields = FIELDS.to_vec();
-        let fields = fields.join(",");
+        let fields = FIELDS.join(",");
 
         let url = format!(
             "{BASE_URL}/v{}/ads_archive?search_terms='{}'&ad_reached_countries={}&fields={}&access_token={}&unmask_removed_content={}{}{}",
