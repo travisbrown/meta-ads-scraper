@@ -87,15 +87,22 @@ async fn main() -> Result<(), Error> {
                 .from_writer(std::io::stdout());
 
             for result in results {
-                for ad in result.result().unwrap_or_default() {
-                    writer.write_record([
-                        ad.id.to_string(),
-                        ad.page_id.to_string(),
-                        ad.page_name.to_string(),
-                    ])?;
+                match result.result() {
+                    Ok(ads) => {
+                        for ad in ads {
+                            writer.write_record([
+                                ad.id.to_string(),
+                                ad.page_id.to_string(),
+                                ad.page_name.to_string(),
+                            ])?;
 
-                    if full {
-                        library_client.app(ad.id).await?;
+                            if full {
+                                library_client.app(ad.id).await?;
+                            }
+                        }
+                    }
+                    Err(error) => {
+                        ::log::warn!("{}", error.message);
                     }
                 }
             }
