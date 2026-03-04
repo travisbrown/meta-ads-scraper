@@ -12,7 +12,6 @@ bounded-static-derive-more = { workspace = true }
 chrono = { workspace = true }
 csv = { workspace = true }
 cli-helpers = { workspace = true }
-indexmap = { workspace = true }
 log = { workspace = true }
 regex = { workspace = true }
 reqwest = { workspace = true }
