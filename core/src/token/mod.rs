@@ -74,7 +74,9 @@ pub async fn upgrade_token(
     token: &str,
 ) -> Result<Response<'static>, reqwest::Error> {
     let url = format!(
-        "https://graph.facebook.com/v{version}/oauth/access_token?grant_type=fb_exchange_token&client_id={app_id}&client_secret={app_secret}&fb_exchange_token={token}"
+        "https://graph.facebook.com/v{version}/oauth/access_token?grant_type=fb_exchange_token&client_id={app_id}&client_secret={}&fb_exchange_token={}",
+        urlencoding::encode(app_secret),
+        urlencoding::encode(token),
     );
 
     let response = reqwest::get(url).await?;

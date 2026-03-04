@@ -207,7 +207,7 @@ impl<'a> scraper_trail::request::params::Params for Params<'a> {
             urlencoding::encode(&self.terms),
             urlencoding::encode(&ad_reached_countries),
             urlencoding::encode(&fields),
-            self.access_token,
+            urlencoding::encode(&self.access_token),
             self.unmask_removed_content,
             if self.search_type == SearchType::default() {
                 String::new()
