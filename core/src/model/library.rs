@@ -99,20 +99,20 @@ impl<'a> Ad<'a> {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum AdResponse<'a> {
-    Value(Ad<'a>),
+    Value(Box<Ad<'a>>),
     Empty,
 }
 
 impl<'a> From<Option<Ad<'a>>> for AdResponse<'a> {
     fn from(value: Option<Ad<'a>>) -> Self {
-        value.map_or(Self::Empty, Self::Value)
+        value.map_or(Self::Empty, |ad| Self::Value(Box::new(ad)))
     }
 }
 
 impl<'a> From<AdResponse<'a>> for Option<Ad<'a>> {
     fn from(value: AdResponse<'a>) -> Self {
         match value {
-            AdResponse::Value(ad) => Some(ad),
+            AdResponse::Value(ad) => Some(*ad),
             AdResponse::Empty => None,
         }
     }
