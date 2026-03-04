@@ -71,15 +71,15 @@ async fn main() -> Result<(), Error> {
             };
 
             let results = client
-                .search(
+                .search(&meta_ads_scraper::client::SearchOptions {
                     version,
-                    &terms,
-                    &country,
+                    terms: &terms,
+                    countries: &country,
                     search_type,
-                    after.as_deref(),
+                    after: after.as_deref(),
                     limit,
-                    std::time::Duration::from_secs(delay),
-                )
+                    delay: std::time::Duration::from_secs(delay),
+                })
                 .await?;
 
             let mut writer = csv::WriterBuilder::new()

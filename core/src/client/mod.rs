@@ -17,6 +17,19 @@ pub enum Error {
     ScraperClient(#[from] scraper_trail::client::Error),
 }
 
+/// Parameters for a search request.
+pub struct SearchOptions<'a> {
+    pub version: crate::version::GraphApiVersion,
+    pub terms: &'a str,
+    pub countries: &'a [String],
+    pub search_type: request::SearchType,
+    /// Optional pagination cursor to resume from.
+    pub after: Option<&'a str>,
+    /// Maximum number of pages to fetch.
+    pub limit: Option<usize>,
+    pub delay: std::time::Duration,
+}
+
 #[derive(Clone)]
 pub struct Client {
     underlying: reqwest::Client,
@@ -37,24 +50,18 @@ impl Client {
 
     pub async fn search(
         &self,
-        version: crate::version::GraphApiVersion,
-        terms: &str,
-        countries: &[String],
-        search_type: request::SearchType,
-        after: Option<&str>,
-        limit: Option<usize>,
-        delay: std::time::Duration,
+        opts: &SearchOptions<'_>,
     ) -> Result<Vec<crate::model::Response<'static, crate::model::Ad<'static>>>, Error> {
         ::log::info!("Initial request");
 
         let params = request::Params::new(
             &self.access_token,
             self.unmask_removed_content,
-            version,
-            terms,
-            countries,
-            search_type,
-            after,
+            opts.version,
+            opts.terms,
+            opts.countries,
+            opts.search_type,
+            opts.after,
         );
 
         let request = params.build_request(None);
@@ -75,7 +82,7 @@ impl Client {
                 .as_ref()
                 .map(|paging| (paging.cursors.after.clone(), paging.next.clone()))
         }) {
-            tokio::time::sleep(delay).await;
+            tokio::time::sleep(opts.delay).await;
             ::log::info!("Pagination request: {after}");
 
             let params = next
