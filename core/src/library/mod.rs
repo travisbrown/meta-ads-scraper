@@ -1,3 +1,5 @@
+use regex::Regex;
+use reqwest::StatusCode;
 use scraper::Selector;
 use scraper_trail::request::params::Params;
 use std::path::{Path, PathBuf};
@@ -10,6 +12,9 @@ const DEFAULT_USER_AGENT: &str = "curl/8.16.0";
 static JSON_SCRIPT_SEL: LazyLock<Selector> =
     LazyLock::new(|| Selector::parse(r#"script[type="application/json"]"#).unwrap());
 
+static CHALLENGE_URL_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r#"fetch\s*\(\s*["\'](/__rd_verify[^"\']+)["\']"#).unwrap());
+
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("I/O error")]
@@ -20,6 +25,8 @@ pub enum Error {
     Json(#[from] serde_json::Error),
     #[error("Scraper client error")]
     ScraperClient(#[from] scraper_trail::client::Error),
+    #[error("Unable to acquire challenge cookies")]
+    ChallengeCookies,
 }
 
 #[derive(Clone)]
@@ -36,7 +43,8 @@ impl Client {
         let user_agent: Option<String> = user_agent.map(std::convert::Into::into);
 
         let client = reqwest::ClientBuilder::new()
-            .user_agent(user_agent.as_deref().unwrap_or(DEFAULT_USER_AGENT));
+            .user_agent(user_agent.as_deref().unwrap_or(DEFAULT_USER_AGENT))
+            .cookie_store(true);
 
         Ok(Self {
             underlying: client.build()?,
@@ -48,20 +56,57 @@ impl Client {
         let params = request::Params::new(id);
         let request = params.build_request(None);
 
-        let exchange = scraper_trail::client::text_send(&self.underlying, request).await?;
+        match scraper_trail::client::text_send(&self.underlying, request).await {
+            Ok(exchange) => {
+                let html = scraper::html::Html::parse_document(&exchange.response.data);
+                let json_scripts = html
+                    .select(&JSON_SCRIPT_SEL)
+                    .map(|element| serde_json::from_str::<serde_json::Value>(&element.inner_html()))
+                    .collect::<Result<Vec<_>, _>>()?;
 
-        let html = scraper::html::Html::parse_document(&exchange.response.data);
-        let json_scripts = html
-            .select(&JSON_SCRIPT_SEL)
-            .map(|element| serde_json::from_str::<serde_json::Value>(&element.inner_html()))
-            .collect::<Result<Vec<_>, _>>()?;
+                let exchange = exchange.map(|_| serde_json::json!(json_scripts));
 
-        let exchange = exchange.map(|_| serde_json::json!(json_scripts));
+                if let Some(base) = &self.output {
+                    exchange.save_file(base)?;
+                }
 
-        if let Some(base) = &self.output {
-            exchange.save_file(base)?;
+                Ok(())
+            }
+            Err(scraper_trail::client::Error::UnexpectedStatus { status_code, .. })
+                if status_code == reqwest::StatusCode::FORBIDDEN =>
+            {
+                ::log::warn!("Received 403 for ad {id}; trying to acquire challenge cookies");
+
+                self.acquire_challege_cookies(id).await?;
+
+                Box::pin(self.app(id)).await
+            }
+            Err(err) => Err(err.into()),
         }
+    }
 
-        Ok(())
+    async fn acquire_challege_cookies(&self, id: u64) -> Result<bool, Error> {
+        let params = request::Params::new(id);
+        let request = params.build_request(None);
+
+        let response = self.underlying.get(request.url.clone()).send().await?;
+
+        match response.status() {
+            StatusCode::FORBIDDEN => {
+                let body = response.text().await?;
+
+                let challenge_url = CHALLENGE_URL_RE
+                    .captures(&body)
+                    .and_then(|caps| caps.get(1))
+                    .ok_or(Error::ChallengeCookies)?;
+
+                let url = format!("https://www.facebook.com{}", challenge_url.as_str());
+
+                self.underlying.post(&url).send().await?;
+
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
     }
 }
