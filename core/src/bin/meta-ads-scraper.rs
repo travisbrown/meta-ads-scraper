@@ -19,7 +19,7 @@ pub enum Error {
     #[error("Library client error")]
     LibraryClient(#[from] meta_ads_scraper::library::Error),
     #[error("Library model error")]
-    LibraryModel(PathBuf, meta_ads_scraper::model::library::Error),
+    LibraryModel(PathBuf, meta_ads_scraper::model::library::v1::Error),
     #[error("Scraper store error")]
     ScraperStore(#[from] scraper_trail::archive::store::Error),
     #[error("HTTP client error")]
@@ -193,31 +193,31 @@ async fn main() -> Result<(), Error> {
                 let contents = contents?;
 
                 let archive = serde_json::from_str::<
-                    Entry<meta_ads_scraper::model::library::AdResponse>,
+                    Entry<meta_ads_scraper::model::library::v2::AdLibraryResponse>,
                 >(&contents)
                 .map_err(|error| Error::JsonFile(path, error))?;
 
-                if let meta_ads_scraper::model::library::AdResponse::Value(ad) =
-                    archive.exchange.response.data
-                {
+                let response = archive.exchange.response.data;
+                if let Some(ad) = response.ad() {
                     writer.write_record([
-                        ad.deeplink_ad_card.ad_archive_id.to_string(),
-                        ad.deeplink_ad_card.snapshot.page_id.to_string(),
-                        ad.deeplink_ad_card
-                            .snapshot
+                        ad.ad_archive_id.to_string(),
+                        ad.snapshot.page_id.to_string(),
+                        ad.snapshot
                             .link_url
+                            .as_ref()
                             .map(|link_url| link_url.to_string())
                             .unwrap_or_default(),
-                        ad.deeplink_ad_card
-                            .snapshot
-                            .page_profile_picture_url
-                            .to_string(),
-                        ad.deeplink_ad_card
-                            .snapshot
-                            .videos
-                            .first()
-                            .and_then(|video| video.video_preview_image_url.as_ref())
-                            .map(|video_preview_image_url| video_preview_image_url.to_string())
+                    ])?;
+                }
+
+                for ad in response.search_results().ads {
+                    writer.write_record([
+                        ad.ad_archive_id.to_string(),
+                        ad.snapshot.page_id.to_string(),
+                        ad.snapshot
+                            .link_url
+                            .as_ref()
+                            .map(|link_url| link_url.to_string())
                             .unwrap_or_default(),
                     ])?;
                 }

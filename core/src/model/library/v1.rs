@@ -202,11 +202,4 @@ pub enum PageEntityType {
     IgAdsIdentity,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
-pub struct Video<'a> {
-    pub video_hd_url: Option<Cow<'a, str>>,
-    pub video_sd_url: Cow<'a, str>,
-    pub watermarked_video_hd_url: Option<Cow<'a, str>>,
-    pub watermarked_video_sd_url: Option<Cow<'a, str>>,
-    pub video_preview_image_url: Option<Cow<'a, str>>,
-}
+pub use super::Video;
