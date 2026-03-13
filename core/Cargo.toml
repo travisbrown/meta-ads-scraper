@@ -1,5 +1,5 @@
 [package]
-name = "meta-ads-scraper"
+name = "meta-ads-access"
 authors = { workspace = true }
 repository = { workspace = true }
 version = { workspace = true }

@@ -1,6 +1,6 @@
 use chrono::Utc;
 use cli_helpers::prelude::*;
-use meta_ads_scraper::{
+use meta_ads_access::{
     model::{Ad, Response},
     token::Creds,
     version::GraphApiVersion,
@@ -15,11 +15,11 @@ pub enum Error {
     #[error("CLI argument reading error")]
     Args(#[from] cli_helpers::Error),
     #[error("API client error")]
-    Api(#[from] meta_ads_scraper::client::Error),
+    Api(#[from] meta_ads_access::client::Error),
     #[error("Library client error")]
-    LibraryClient(#[from] meta_ads_scraper::library::Error),
+    LibraryClient(#[from] meta_ads_access::library::Error),
     #[error("Library model error")]
-    LibraryModel(PathBuf, meta_ads_scraper::model::library::v1::Error),
+    LibraryModel(PathBuf, meta_ads_access::model::library::v1::Error),
     #[error("Scraper store error")]
     ScraperStore(#[from] scraper_trail::archive::store::Error),
     #[error("HTTP client error")]
@@ -60,18 +60,18 @@ async fn main() -> Result<(), Error> {
             let creds: Creds = toml::from_str(&std::fs::read_to_string(creds)?)?;
             log_token_status(creds.status(Utc::now()));
 
-            let client = meta_ads_scraper::client::Client::new(creds.token, output.as_deref());
+            let client = meta_ads_access::client::Client::new(creds.token, output.as_deref());
             let library_client =
-                meta_ads_scraper::library::Client::new::<_, String>(full_output.as_deref(), None)?;
+                meta_ads_access::library::Client::new::<_, String>(full_output.as_deref(), None)?;
 
             let search_type = if exact {
-                meta_ads_scraper::client::request::SearchType::KeywordExactPhrase
+                meta_ads_access::client::request::SearchType::KeywordExactPhrase
             } else {
-                meta_ads_scraper::client::request::SearchType::KeywordUnordered
+                meta_ads_access::client::request::SearchType::KeywordUnordered
             };
 
             let results = client
-                .search(&meta_ads_scraper::client::SearchOptions {
+                .search(&meta_ads_access::client::SearchOptions {
                     version,
                     terms: &terms,
                     countries: &country,
@@ -110,7 +110,7 @@ async fn main() -> Result<(), Error> {
             writer.flush()?;
         }
         Command::LibraryAd { id, output } => {
-            let client = meta_ads_scraper::library::Client::new::<_, String>(output, None)?;
+            let client = meta_ads_access::library::Client::new::<_, String>(output, None)?;
 
             client.app(id).await?;
         }
@@ -124,7 +124,7 @@ async fn main() -> Result<(), Error> {
                 })
                 .collect::<Result<Vec<_>, _>>()?;
 
-            let client = meta_ads_scraper::library::Client::new::<_, String>(output, None)?;
+            let client = meta_ads_access::library::Client::new::<_, String>(output, None)?;
 
             for id in ids {
                 client.app(id).await?;
@@ -138,8 +138,7 @@ async fn main() -> Result<(), Error> {
             token,
         } => {
             let response =
-                meta_ads_scraper::token::upgrade_token(version, app_id, &app_secret, &token)
-                    .await?;
+                meta_ads_access::token::upgrade_token(version, app_id, &app_secret, &token).await?;
 
             ::log::info!("Expires in {} seconds", response.expires_in);
 
@@ -193,7 +192,7 @@ async fn main() -> Result<(), Error> {
                 let contents = contents?;
 
                 let archive = serde_json::from_str::<
-                    Entry<meta_ads_scraper::model::library::v2::AdLibraryResponse>,
+                    Entry<meta_ads_access::model::library::v2::AdLibraryResponse>,
                 >(&contents)
                 .map_err(|error| Error::JsonFile(path, error))?;
 
@@ -231,7 +230,7 @@ async fn main() -> Result<(), Error> {
 }
 
 #[derive(Debug, Parser)]
-#[clap(name = "meta-ads-scraper", version, author)]
+#[clap(name = "meta-ads-access", version, author)]
 struct Opts {
     #[clap(flatten)]
     verbose: Verbosity,
@@ -317,14 +316,14 @@ enum Command {
     },
 }
 
-fn log_token_status(status: meta_ads_scraper::token::TokenStatus) {
+fn log_token_status(status: meta_ads_access::token::TokenStatus) {
     match status {
-        meta_ads_scraper::token::TokenStatus::Expired => {
+        meta_ads_access::token::TokenStatus::Expired => {
             ::log::error!("Token is expired, request is likely to fail");
         }
-        meta_ads_scraper::token::TokenStatus::ExpiringSoon => {
+        meta_ads_access::token::TokenStatus::ExpiringSoon => {
             ::log::error!("Token is expiring soon");
         }
-        meta_ads_scraper::token::TokenStatus::Ok => {}
+        meta_ads_access::token::TokenStatus::Ok => {}
     }
 }

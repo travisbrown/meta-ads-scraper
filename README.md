@@ -1,7 +1,7 @@
 # Meta Ads Archive API client
 
-[![Rust build status](https://img.shields.io/github/actions/workflow/status/travisbrown/meta-ads-scraper/ci.yaml?branch=main)](https://github.com/travisbrown/meta-ads-scraper/actions)
-[![Coverage status](https://img.shields.io/codecov/c/github/travisbrown/meta-ads-scraper/main.svg)](https://codecov.io/github/travisbrown/meta-ads-scraper)
+[![Rust build status](https://img.shields.io/github/actions/workflow/status/travisbrown/meta-ads-access/ci.yaml?branch=main)](https://github.com/travisbrown/meta-ads-access/actions)
+[![Coverage status](https://img.shields.io/codecov/c/github/travisbrown/meta-ads-access/main.svg)](https://codecov.io/github/travisbrown/meta-ads-access)
 
 A [Meta Ads Archive][meta-ads-archive] API client for Rust.
 
@@ -24,7 +24,7 @@ You can upgrade this short-lived token to a long-lived token by running the foll
 
 ```bash
 > cargo build --release
-> target/release/meta-ads-scraper -vvvv upgrade-token --app-id 123 --app-secret XXX --token ABC > creds.toml
+> target/release/meta-ads-access -vvvv upgrade-token --app-id 123 --app-secret XXX --token ABC > creds.toml
 ```
 
 Note that you will need to have [installed][rust-installation] [Rust][rust] on your system for this to work.
@@ -46,7 +46,7 @@ These archived request-response pairs can be parsed later using other commands.
 If you've compiled the project and set up your credentials, you can run the following command (the `-vvv` verbosity will log details about pagination requests):
 
 ```
-$ target/release/meta-ads-scraper -vvv search --output data/search/ --terms "ai chess"
+$ target/release/meta-ads-access -vvv search --output data/search/ --terms "ai chess"
 ```
 
 This particular search currently takes around four minutes to run, will make around 190 pagination requests, and returns around 4,700 ads.
@@ -56,7 +56,7 @@ See the CLI documentation for more information about search options:
 ```
 Perform a search (possibly paginated) and print the ad IDs, page IDs, and page names as CSV
 
-Usage: meta-ads-scraper search [OPTIONS] --terms <TERMS>
+Usage: meta-ads-access search [OPTIONS] --terms <TERMS>
 
 Options:
       --creds <CREDS>              [default: creds.toml]
@@ -77,7 +77,7 @@ Options:
 If you've used the `--output` command while making searches, you can parse the archived data (without making new requests) using the `search-archive` command:
 
 ```
-$ target/release/meta-ads-scraper -vvv search-archive --data data/search/ | head
+$ target/release/meta-ads-access -vvv search-archive --data data/search/ | head
 576535441426103,157817344084965,Chessiverse
 589129136845222,1834313933459789,BBC StoryWorks
 551290891182597,367754219763901,writer_kalyani
@@ -95,7 +95,7 @@ $ target/release/meta-ads-scraper -vvv search-archive --data data/search/ | head
 Once you have a list of ad IDs (the first column returned by the commands in the previous section), you can scrape and extract data from the Ads Library HTML pages for these ads.
 
 ```
-$ target/release/meta-ads-scraper -vvv library-ad --output data/library/ --id 576535441426103
+$ target/release/meta-ads-access -vvv library-ad --output data/library/ --id 576535441426103
 ```
 
 You can also use the `library-ads` command to run requests for a batch of ad IDs provided on standard input (one numeric ID per line). Both commands will save the requests and responses to the provided `--output` directory.
@@ -103,7 +103,7 @@ You can also use the `library-ads` command to run requests for a batch of ad IDs
 You can then run the following command to list the contents of that directory:
 
 ```
-$ target/release/meta-ads-scraper -vvv library-archive --data data/library/
+$ target/release/meta-ads-access -vvv library-archive --data data/library/
 ```
 
 This will print CSV rows where the columns are the ad ID, the advertiser page ID, the ad link, the advertiser page profile image URL, and an ad preview URL.
