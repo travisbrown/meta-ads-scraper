@@ -4,8 +4,8 @@ members = ["core"]
 
 [workspace.package]
 authors = ["Travis Brown <travisrobertbrown@gmail.com>"]
-homepage = "https://github.com/travisbrown/meta-ads-archive"
-repository = "https://github.com/travisbrown/meta-ads-archive"
+homepage = "https://github.com/travisbrown/meta-ads-access"
+repository = "https://github.com/travisbrown/meta-ads-access"
 keywords = ["facebook", "meta", "scraper"]
 edition = "2024"
 license = "GPL-3.0-only"

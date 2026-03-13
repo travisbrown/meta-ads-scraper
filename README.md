@@ -1,9 +1,9 @@
-# Meta Ads Archive API client
+# Meta Ad Library API client
 
 [![Rust build status](https://img.shields.io/github/actions/workflow/status/travisbrown/meta-ads-access/ci.yaml?branch=main)](https://github.com/travisbrown/meta-ads-access/actions)
 [![Coverage status](https://img.shields.io/codecov/c/github/travisbrown/meta-ads-access/main.svg)](https://codecov.io/github/travisbrown/meta-ads-access)
 
-A [Meta Ads Archive][meta-ads-archive] API client for Rust.
+A [Meta Ad Library][meta-ad-library] API client for Rust.
 
 ## Warning
 
@@ -115,7 +115,7 @@ This software is licensed under the [GNU General Public License v3.0][gpl-v3] (G
 [facebook-apps]: https://developers.facebook.com/apps/
 [gpl-v3]: https://www.gnu.org/licenses/gpl-3.0.en.html
 [graph-api-explorer]: https://developers.facebook.com/tools/explorer/
-[meta-ads-archive]: https://developers.facebook.com/docs/graph-api/reference/ads_archive/
+[meta-ad-library]: https://developers.facebook.com/docs/graph-api/reference/ads_archive/
 [onboarding]: https://www.facebook.com/ads/library/api/?source=onboarding
 [rust]: https://rust-lang.org/
 [rust-installation]: https://doc.rust-lang.org/cargo/getting-started/installation.html
