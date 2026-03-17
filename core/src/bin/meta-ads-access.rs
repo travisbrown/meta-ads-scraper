@@ -6,6 +6,7 @@ use meta_ads_access::{
     version::GraphApiVersion,
 };
 use scraper_trail::archive::entry::Entry;
+use std::io::Write;
 use std::path::PathBuf;
 
 #[derive(thiserror::Error, Debug)]
@@ -136,13 +137,20 @@ async fn main() -> Result<(), Error> {
             app_id,
             app_secret,
             token,
+            output,
         } => {
             let response =
                 meta_ads_access::token::upgrade_token(version, app_id, &app_secret, &token).await?;
 
             ::log::info!("Expires in {} seconds", response.expires_in);
 
-            println!("{}", toml::to_string(&response.creds(Utc::now()))?);
+            let contents = toml::to_string(&response.creds(Utc::now()))?;
+
+            if let Some(output) = output {
+                std::fs::write(output, format!("{contents}\n"))?;
+            } else {
+                writeln!(std::io::stdout(), "{contents}",)?;
+            }
         }
         Command::SearchArchive {
             data,
@@ -287,7 +295,7 @@ enum Command {
         #[clap(long, default_value = "0")]
         delay: u64,
     },
-    /// Upgrade a short-lived token to a long-lived one and print as TOML
+    /// Upgrade a short-lived token to a long-lived one and save as TOML
     UpgradeToken {
         #[clap(long, default_value = "24.0")]
         version: GraphApiVersion,
@@ -298,6 +306,9 @@ enum Command {
         /// Active short-lived token
         #[clap(long)]
         token: String,
+        /// File to save credentials to (optional; if absent will print to standard out)
+        #[clap(long)]
+        output: Option<PathBuf>,
     },
     /// Print ad IDs, page IDs, and page names as CSV for all archived exchanges
     SearchArchive {
