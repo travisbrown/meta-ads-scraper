@@ -24,7 +24,7 @@ You can upgrade this short-lived token to a long-lived token by running the foll
 
 ```bash
 > cargo build --release
-> target/release/meta-ads-access -vvvv upgrade-token --app-id 123 --app-secret XXX --token ABC > creds.toml
+> target/release/meta-ads-access -vvvv upgrade-token --app-id 123 --app-secret XXX --token ABC --output creds.toml
 ```
 
 Note that you will need to have [installed][rust-installation] [Rust][rust] on your system for this to work.
