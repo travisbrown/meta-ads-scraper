@@ -76,34 +76,36 @@ impl Client {
 
         let mut responses = vec![response];
 
-        while let Some((after, next)) = responses.last().and_then(|response| {
-            response
-                .paging()
-                .as_ref()
-                .map(|paging| (paging.cursors.after.clone(), paging.next.clone()))
-        }) {
-            tokio::time::sleep(opts.delay).await;
-            ::log::info!("Pagination request: {after}");
+        if opts.limit.is_some_and(|limit| limit > 1) {
+            while let Some((after, next)) = responses.last().and_then(|response| {
+                response
+                    .paging()
+                    .as_ref()
+                    .map(|paging| (paging.cursors.after.clone(), paging.next.clone()))
+            }) {
+                tokio::time::sleep(opts.delay).await;
+                ::log::info!("Pagination request: {after}");
 
-            let params = next
-                .parse()
-                .ok()
-                .and_then(|url| request::Params::parse_url(&url))
-                .ok_or_else(|| Error::UnexpectedPaginationUrl(next.to_string()))?;
-            let request = params.build_request(None);
-            let exchange = scraper_trail::client::json_send(&self.underlying, request).await?;
+                let params = next
+                    .parse()
+                    .ok()
+                    .and_then(|url| request::Params::parse_url(&url))
+                    .ok_or_else(|| Error::UnexpectedPaginationUrl(next.to_string()))?;
+                let request = params.build_request(None);
+                let exchange = scraper_trail::client::json_send(&self.underlying, request).await?;
 
-            if let Some(base) = &self.output {
-                exchange.save_file(base)?;
-            }
+                if let Some(base) = &self.output {
+                    exchange.save_file(base)?;
+                }
 
-            let response: crate::model::Response<'static, crate::model::Ad<'static>> =
-                serde_json::from_value(exchange.response.data)?;
+                let response: crate::model::Response<'static, crate::model::Ad<'static>> =
+                    serde_json::from_value(exchange.response.data)?;
 
-            responses.push(response);
+                responses.push(response);
 
-            if opts.limit.is_some_and(|limit| responses.len() == limit) {
-                break;
+                if opts.limit.is_some_and(|limit| responses.len() == limit) {
+                    break;
+                }
             }
         }
 
