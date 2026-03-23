@@ -1,6 +1,7 @@
 use chrono::Utc;
 use cli_helpers::prelude::*;
 use meta_ads_access::{
+    client::request::SearchType,
     model::{Ad, Response},
     token::Creds,
     version::GraphApiVersion,
@@ -66,9 +67,9 @@ async fn main() -> Result<(), Error> {
                 meta_ads_access::library::Client::new::<_, String>(full_output.as_deref(), None)?;
 
             let search_type = if exact {
-                meta_ads_access::client::request::SearchType::KeywordExactPhrase
+                SearchType::KeywordExactPhrase
             } else {
-                meta_ads_access::client::request::SearchType::KeywordUnordered
+                SearchType::KeywordUnordered
             };
 
             let results = client
@@ -115,7 +116,6 @@ async fn main() -> Result<(), Error> {
             version,
             query_file,
             country,
-            exact,
             output,
             limit,
             full,
@@ -129,23 +129,23 @@ async fn main() -> Result<(), Error> {
             let library_client =
                 meta_ads_access::library::Client::new::<_, String>(full_output.as_deref(), None)?;
 
-            let search_type = if exact {
-                meta_ads_access::client::request::SearchType::KeywordExactPhrase
-            } else {
-                meta_ads_access::client::request::SearchType::KeywordUnordered
-            };
-
             let queries = std::fs::read_to_string(&query_file)?;
 
             let mut writer = csv::WriterBuilder::new()
                 .has_headers(false)
                 .from_writer(std::io::stdout());
 
-            for terms in queries
+            for line in queries
                 .lines()
                 .map(str::trim)
                 .filter(|line| !line.is_empty())
             {
+                let (terms, search_type) = if line.starts_with('"') && line.ends_with('"') {
+                    (&line[1..line.len() - 1], SearchType::KeywordExactPhrase)
+                } else {
+                    (line, SearchType::KeywordUnordered)
+                };
+
                 let results = client
                     .search(&meta_ads_access::client::SearchOptions {
                         version,
@@ -362,8 +362,6 @@ enum Command {
         query_file: PathBuf,
         #[clap(long, default_value = "DE")]
         country: Vec<String>,
-        #[clap(long)]
-        exact: bool,
         /// Archive directory to log requests and responses to
         #[clap(long, default_value = "data/search")]
         output: Option<PathBuf>,
