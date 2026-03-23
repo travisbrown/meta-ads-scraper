@@ -110,6 +110,78 @@ async fn main() -> Result<(), Error> {
 
             writer.flush()?;
         }
+        Command::SearchAll {
+            creds,
+            version,
+            query_file,
+            country,
+            exact,
+            output,
+            limit,
+            full,
+            full_output,
+            delay,
+        } => {
+            let creds: Creds = toml::from_str(&std::fs::read_to_string(creds)?)?;
+            log_token_status(creds.status(Utc::now()));
+
+            let client = meta_ads_access::client::Client::new(creds.token, output.as_deref());
+            let library_client =
+                meta_ads_access::library::Client::new::<_, String>(full_output.as_deref(), None)?;
+
+            let search_type = if exact {
+                meta_ads_access::client::request::SearchType::KeywordExactPhrase
+            } else {
+                meta_ads_access::client::request::SearchType::KeywordUnordered
+            };
+
+            let queries = std::fs::read_to_string(&query_file)?;
+
+            let mut writer = csv::WriterBuilder::new()
+                .has_headers(false)
+                .from_writer(std::io::stdout());
+
+            for terms in queries
+                .lines()
+                .map(str::trim)
+                .filter(|line| !line.is_empty())
+            {
+                let results = client
+                    .search(&meta_ads_access::client::SearchOptions {
+                        version,
+                        terms,
+                        countries: &country,
+                        search_type,
+                        after: None,
+                        limit,
+                        delay: std::time::Duration::from_secs(delay),
+                    })
+                    .await?;
+
+                for result in results {
+                    match result.result() {
+                        Ok(ads) => {
+                            for ad in ads {
+                                writer.write_record([
+                                    ad.id.to_string(),
+                                    ad.page_id.to_string(),
+                                    ad.page_name.to_string(),
+                                ])?;
+
+                                if full {
+                                    library_client.app(ad.id).await?;
+                                }
+                            }
+                        }
+                        Err(error) => {
+                            ::log::warn!("{}", error.message);
+                        }
+                    }
+                }
+            }
+
+            writer.flush()?;
+        }
         Command::LibraryAd { id, output } => {
             let client = meta_ads_access::library::Client::new::<_, String>(output, None)?;
 
@@ -279,6 +351,36 @@ enum Command {
         #[clap(long, default_value = "0")]
         delay: u64,
     },
+    /// Perform searches for a list of queries provided as lines in the indicated text file
+    SearchAll {
+        #[clap(long, default_value = "creds.toml")]
+        creds: PathBuf,
+        #[clap(long, default_value = "24.0")]
+        version: GraphApiVersion,
+        /// Path to a file with one search query per line
+        #[clap(long)]
+        query_file: PathBuf,
+        #[clap(long, default_value = "DE")]
+        country: Vec<String>,
+        #[clap(long)]
+        exact: bool,
+        /// Archive directory to log requests and responses to
+        #[clap(long, default_value = "data/search")]
+        output: Option<PathBuf>,
+        /// Limit to a specified number of pages per query
+        #[clap(long)]
+        limit: Option<usize>,
+        /// Download full ad information
+        #[clap(long)]
+        full: bool,
+        /// Archive directory to log full requests and responses to
+        #[clap(long, default_value = "data/library")]
+        full_output: Option<PathBuf>,
+        /// Optional duration (in seconds) between requests
+        #[clap(long, default_value = "0")]
+        delay: u64,
+    },
+    /// Download ad for the specified ID
     LibraryAd {
         #[clap(long)]
         id: u64,
