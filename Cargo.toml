@@ -21,7 +21,7 @@ indexmap = { version = "2", features = ["serde"] }
 log = "0.4"
 regex = "1"
 reqwest = { version = "0.13", features = ["cookies", "json"] }
-scraper = "0.25"
+scraper = "0.26"
 scraper-trail = "0.2"
 serde = { version = "1", features = ["derive"] }
 serde-field-attributes = "0.3"
