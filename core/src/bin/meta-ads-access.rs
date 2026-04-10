@@ -277,28 +277,36 @@ async fn main() -> Result<(), Error> {
                 .map_err(|error| Error::JsonFile(path, error))?;
 
                 let response = archive.exchange.response.data;
-                if let Some(ad) = response.ad() {
-                    writer.write_record([
-                        ad.ad_archive_id.to_string(),
-                        ad.snapshot.page_id.to_string(),
-                        ad.snapshot
-                            .link_url
-                            .as_ref()
-                            .map(|link_url| link_url.to_string())
-                            .unwrap_or_default(),
-                    ])?;
-                }
 
-                for ad in response.search_results().ads {
-                    writer.write_record([
-                        ad.ad_archive_id.to_string(),
-                        ad.snapshot.page_id.to_string(),
-                        ad.snapshot
-                            .link_url
-                            .as_ref()
-                            .map(|link_url| link_url.to_string())
-                            .unwrap_or_default(),
-                    ])?;
+                if let Some(result) = response.result {
+                    if let Some(ad) = result.ad() {
+                        writer.write_record([
+                            ad.ad_archive_id.to_string(),
+                            ad.snapshot.page_id.to_string(),
+                            ad.snapshot
+                                .link_url
+                                .as_ref()
+                                .map(|link_url| link_url.to_string())
+                                .unwrap_or_default(),
+                        ])?;
+                    }
+
+                    for ad in result.search_results().ads {
+                        writer.write_record([
+                            ad.ad_archive_id.to_string(),
+                            ad.snapshot.page_id.to_string(),
+                            ad.snapshot
+                                .link_url
+                                .as_ref()
+                                .map(|link_url| link_url.to_string())
+                                .unwrap_or_default(),
+                        ])?;
+                    }
+                } else {
+                    ::log::warn!(
+                        "Missing ad_library_main for ad ID: {}",
+                        archive.request_params.ad_id
+                    );
                 }
             }
 

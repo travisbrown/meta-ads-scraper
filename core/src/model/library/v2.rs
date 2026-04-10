@@ -12,8 +12,12 @@ pub enum Error {
     MissingAdLibraryMain,
 }
 
-#[derive(serde::Deserialize)]
 pub struct AdLibraryResponse<'a> {
+    pub result: Option<AdLibraryResult<'a>>,
+}
+
+#[derive(serde::Deserialize)]
+pub struct AdLibraryResult<'a> {
     search_results_connection: RawSearchResultsConnection<'a>,
     deeplink_ad_archive_result: RawDeeplinkAdArchiveResult<'a>,
 }
@@ -51,7 +55,7 @@ pub struct SearchResults<'a> {
     pub ads: Vec<Ad<'a>>,
 }
 
-impl<'a> AdLibraryResponse<'a> {
+impl<'a> AdLibraryResult<'a> {
     /// The ad may be missing (in which case `no_result_reason` will be `NOT_IN_LIBRARY`).
     #[must_use]
     pub const fn ad(&self) -> Option<&Ad<'a>> {
@@ -73,11 +77,11 @@ impl<'a> AdLibraryResponse<'a> {
     }
 
     pub fn extract(value: &Value) -> Result<Option<Self>, Error> {
-        let mut response: Option<AdLibraryResponse<'a>> = None;
+        let mut result: Option<Self> = None;
 
-        Self::extract_rec(value, &mut response)?;
+        Self::extract_rec(value, &mut result)?;
 
-        Ok(response)
+        Ok(result)
     }
 
     fn extract_rec(value: &Value, out: &mut Option<Self>) -> Result<(), Error> {
@@ -93,9 +97,9 @@ impl<'a> AdLibraryResponse<'a> {
             } else if let Some(object) = value.as_object() {
                 for (key, value) in object {
                     if key == "ad_library_main"
-                        && let Ok(response) = serde_json::from_value::<Self>(value.clone())
+                        && let Ok(result) = serde_json::from_value::<Self>(value.clone())
                     {
-                        *out = Some(response);
+                        *out = Some(result);
 
                         break;
                     }
@@ -133,11 +137,8 @@ impl Archiveable for AdLibraryResponse<'_> {
 
         next.map(|(field, response)| {
             response
-                .and_then(|data| {
-                    Self::extract(&data)
-                        .and_then(|response| response.ok_or(Error::MissingAdLibraryMain))
-                })
-                .map(|response| (field, response))
+                .and_then(|data| AdLibraryResult::extract(&data))
+                .map(|response| (field, response.map(|result| Self { result })))
         })
         .map_or(Ok(None), |value| {
             value.map_err(serde::de::Error::custom).map(Some)
